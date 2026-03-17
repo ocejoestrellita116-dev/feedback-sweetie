@@ -24,6 +24,7 @@ export function useFrameLoader(zipUrl: string): FrameLoaderState {
   const abortRef = useRef(false);
 
   useEffect(() => {
+    if (!zipUrl) return;
     abortRef.current = false;
     let objectUrls: string[] = [];
 
