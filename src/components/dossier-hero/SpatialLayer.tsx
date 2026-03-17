@@ -2,7 +2,7 @@ import type { DossierPhaseId } from './dossier-hero.types';
 import { DOSSIER_PHASE_CONTENT } from './dossier-hero.content';
 import { useExperience } from '@/components/experience/ExperienceProvider';
 
-const PARALLAX_PX = 8;
+const PARALLAX_PX = 4;
 
 interface Props {
   phase: DossierPhaseId;
