@@ -1,0 +1,78 @@
+import { useRef, useEffect } from 'react';
+import { SCROLL_RUNWAY_VH } from './dossier-hero.config';
+import { useDossierProgress } from './use-dossier-progress';
+import { useFrameLoader } from './use-frame-loader';
+import { HeroStageWebGL } from './HeroStageWebGL';
+import { BookSequenceCanvas } from './BookSequenceCanvas';
+import { HeroOverlay } from './HeroOverlay';
+import { SpatialLayer } from './SpatialLayer';
+import { ScrollProgressBar } from './ScrollProgressBar';
+import { EnterScreen } from '../experience/EnterScreen';
+import { useExperience } from '../experience/ExperienceProvider';
+
+const ZIP_URL = '/frames/dossier-sequence.zip';
+
+export function DossierHero() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { progress, phase, localProgress } = useDossierProgress(containerRef);
+  const { frames, loaded, progress: loadProgress } = useFrameLoader(ZIP_URL);
+  const { webglAvailable, setHeroActive } = useExperience();
+
+  useEffect(() => {
+    setHeroActive(progress > 0 && phase !== 'handoff');
+  }, [progress, phase, setHeroActive]);
+
+  return (
+    <>
+      <EnterScreen loadProgress={loadProgress} loaded={loaded} />
+      <ScrollProgressBar progress={progress} />
+      <div
+        ref={containerRef}
+        className="relative"
+        style={{ height: `${SCROLL_RUNWAY_VH}vh` }}
+      >
+        {/* Sticky viewport — pinned while scrolling through runway */}
+        <div className="sticky top-0 h-screen w-full overflow-hidden" style={{ background: 'hsl(var(--background))' }}>
+
+          {webglAvailable ? (
+            <HeroStageWebGL
+              progress={progress}
+              phase={phase}
+              localProgress={localProgress}
+              frames={frames}
+              loaded={loaded}
+            />
+          ) : (
+            <>
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: 'radial-gradient(ellipse 80% 70% at 50% 45%, hsl(var(--dossier-warm)), hsl(var(--background)))',
+                }}
+              />
+              <BookSequenceCanvas progress={progress} phase={phase} frames={frames} loaded={loaded} />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(ellipse 68% 63% at 50% 50%, transparent 58%, hsl(var(--background)) 92%)',
+                }}
+              />
+            </>
+          )}
+
+          <SpatialLayer phase={phase} localProgress={localProgress} progress={progress} />
+          <HeroOverlay phase={phase} localProgress={localProgress} progress={progress} />
+        </div>
+      </div>
+
+      {/* Bridge gradient — soft dissolve from hero into first section */}
+      <div
+        className="relative -mt-px pointer-events-none"
+        style={{
+          height: '20vh',
+          background: 'linear-gradient(to bottom, hsl(var(--background)) 0%, transparent 100%)',
+        }}
+      />
+    </>
+  );
+}
