@@ -12,7 +12,7 @@ import {
   type PhaseSceneState,
   type SemanticNodeKey,
 } from './hero-scene.config';
-import { useGLBScene } from './use-glb-loader';
+import { useGLBScene, type SemanticNodes } from './use-glb-loader';
 import { useExperience } from '../experience/ExperienceProvider';
 
 /* ─── Props ─── */
@@ -31,9 +31,16 @@ function lerpState(a: PhaseSceneState, b: PhaseSceneState, t: number): PhaseScen
     cameraZ: l(a.cameraZ, b.cameraZ, t),
     cameraY: l(a.cameraY, b.cameraY, t),
     sceneTiltMultiplier: l(a.sceneTiltMultiplier, b.sceneTiltMultiplier, t),
+    heroArtifactY: l(a.heroArtifactY, b.heroArtifactY, t),
+    heroArtifactScale: l(a.heroArtifactScale, b.heroArtifactScale, t),
+    supportY: l(a.supportY, b.supportY, t),
+    supportSpread: l(a.supportSpread, b.supportSpread, t),
+    atmosphereOpacity: l(a.atmosphereOpacity, b.atmosphereOpacity, t),
     orbGlow: l(a.orbGlow, b.orbGlow, t),
   };
 }
+
+const INITIAL_STATE: PhaseSceneState = { ...PHASE_SCENE.closed };
 
 /* ─── Grain overlay shader ─── */
 
@@ -54,30 +61,139 @@ void main() {
   gl_FragColor = vec4(vec3(n), uOpacity);
 }`;
 
+/* ─── Motion functions ─── */
+
+function applyPhaseMotion(
+  current: PhaseSceneState,
+  target: PhaseSceneState,
+  delta: number,
+  camera: THREE.Camera,
+  pointerLerpX: number,
+  pointerLerpY: number,
+  heroArtifactRef: React.RefObject<THREE.Group | null>,
+  supportRef: React.RefObject<THREE.Group | null>,
+) {
+  const lerpAmt = 1 - Math.pow(1 - SCENE_LERP, delta * 60);
+  const l = THREE.MathUtils.lerp;
+  const s = current;
+
+  // Lerp all state fields
+  s.cameraZ = l(s.cameraZ, target.cameraZ, lerpAmt);
+  s.cameraY = l(s.cameraY, target.cameraY, lerpAmt);
+  s.sceneTiltMultiplier = l(s.sceneTiltMultiplier, target.sceneTiltMultiplier, lerpAmt);
+  s.heroArtifactY = l(s.heroArtifactY, target.heroArtifactY, lerpAmt);
+  s.heroArtifactScale = l(s.heroArtifactScale, target.heroArtifactScale, lerpAmt);
+  s.supportY = l(s.supportY, target.supportY, lerpAmt);
+  s.supportSpread = l(s.supportSpread, target.supportSpread, lerpAmt);
+  s.atmosphereOpacity = l(s.atmosphereOpacity, target.atmosphereOpacity, lerpAmt);
+  s.orbGlow = l(s.orbGlow, target.orbGlow, lerpAmt);
+
+  // Camera
+  const px = (pointerLerpX - 0.5) * POINTER_RANGES.cameraPointerX;
+  const py = (pointerLerpY - 0.5) * -POINTER_RANGES.cameraPointerY;
+  (camera as THREE.PerspectiveCamera).position.set(px, s.cameraY + py, s.cameraZ);
+  camera.lookAt(0, 0.8, 0);
+
+  // Hero artifact group
+  if (heroArtifactRef.current) {
+    heroArtifactRef.current.position.y = s.heroArtifactY;
+    const sc = s.heroArtifactScale;
+    heroArtifactRef.current.scale.set(sc, sc, sc);
+  }
+
+  // Support group
+  if (supportRef.current) {
+    supportRef.current.position.y = s.supportY;
+    // Spread: scale X slightly outward
+    const sp = 1 + s.supportSpread;
+    supportRef.current.scale.set(sp, 1, sp);
+  }
+}
+
+function applyPointerMotion(
+  sceneRef: React.RefObject<THREE.Group | null>,
+  nodes: SemanticNodes,
+  pointerLerpX: number,
+  pointerLerpY: number,
+  tiltMul: number,
+  originals: Map<string, THREE.Vector3>,
+) {
+  // Scene root tilt
+  if (sceneRef.current) {
+    sceneRef.current.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.sceneTiltY * tiltMul;
+    sceneRef.current.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.sceneTiltX * tiltMul;
+  }
+
+  // Per-node pointer shift & tilt
+  Object.entries(nodes).forEach(([key, node]) => {
+    if (!node) return;
+    const behaviour = NODE_BEHAVIOUR[key as SemanticNodeKey];
+    if (!behaviour) return;
+
+    const orig = originals.get(key);
+    if (!orig) return;
+
+    let xShift = 0;
+    let zShift = 0;
+
+    if (behaviour.pointerShift) {
+      xShift = (pointerLerpX - 0.5) * behaviour.pointerShift.x;
+      zShift = (pointerLerpY - 0.5) * behaviour.pointerShift.y;
+    }
+
+    if (behaviour.pointerTilt) {
+      node.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.artifactTiltY;
+      node.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.artifactTiltX;
+    }
+
+    // Only apply X/Z shift (Y handled by secondary motion)
+    node.position.x = orig.x + xShift;
+    node.position.z = orig.z + zShift;
+  });
+}
+
+function applySecondaryMotion(
+  nodes: SemanticNodes,
+  elapsed: number,
+  originals: Map<string, THREE.Vector3>,
+) {
+  Object.entries(nodes).forEach(([key, node]) => {
+    if (!node) return;
+    const behaviour = NODE_BEHAVIOUR[key as SemanticNodeKey];
+    if (!behaviour?.float) return;
+
+    const orig = originals.get(key);
+    if (!orig) return;
+
+    const yOffset = Math.sin(elapsed * behaviour.float.speed * Math.PI * 2) * behaviour.float.amp;
+    node.position.y = orig.y + yOffset;
+  });
+}
+
 /* ─── Scene content (lives inside Canvas) ─── */
 
 function SceneContent({ progress, phase, localProgress }: StageProps) {
   const { pointerLerpX, pointerLerpY } = useExperience();
   const { camera } = useThree();
-  const { scene: glbScene, nodes, loaded } = useGLBScene();
+  const { nodes, grouped, loaded } = useGLBScene();
 
-  // Scene root ref for tilt
-  const sceneRootRef = useRef<THREE.Group>(null);
-  const currentState = useRef<PhaseSceneState>({ ...PHASE_SCENE.closed });
+  const sceneRef = useRef<THREE.Group>(null);
+  const heroArtifactRef = useRef<THREE.Group>(null);
+  const supportRef = useRef<THREE.Group>(null);
+  const currentState = useRef<PhaseSceneState>({ ...INITIAL_STATE });
   const grainRef = useRef<THREE.ShaderMaterial>(null);
 
-  // Store original positions of nodes for shift animation
+  // Store original positions for shift animations
   const originalPositions = useRef<Map<string, THREE.Vector3>>(new Map());
 
   useEffect(() => {
-    if (!loaded || !glbScene) return;
-    // Capture original positions
+    if (!loaded) return;
     Object.entries(nodes).forEach(([key, node]) => {
       if (node) {
         originalPositions.current.set(key, node.position.clone());
       }
     });
-  }, [loaded, glbScene, nodes]);
+  }, [loaded, nodes]);
 
   // Grain material
   const grainMat = useMemo(() => new THREE.ShaderMaterial({
@@ -95,84 +211,30 @@ function SceneContent({ progress, phase, localProgress }: StageProps) {
   useFrame((state, delta) => {
     if (!loaded) return;
 
-    // 1. Target phase state
+    // 1. Compute target from phase + localProgress blend
     const phaseKeys = Object.keys(PHASE_SCENE) as DossierPhaseId[];
     const phaseIdx = phaseKeys.indexOf(phase);
     const nextIdx = Math.min(phaseIdx + 1, phaseKeys.length - 1);
     const target = lerpState(PHASE_SCENE[phase], PHASE_SCENE[phaseKeys[nextIdx]], localProgress);
 
-    // 2. Smooth lerp
-    const s = currentState.current;
-    const lerpAmt = 1 - Math.pow(1 - SCENE_LERP, delta * 60);
-    s.cameraZ = THREE.MathUtils.lerp(s.cameraZ, target.cameraZ, lerpAmt);
-    s.cameraY = THREE.MathUtils.lerp(s.cameraY, target.cameraY, lerpAmt);
-    s.sceneTiltMultiplier = THREE.MathUtils.lerp(s.sceneTiltMultiplier, target.sceneTiltMultiplier, lerpAmt);
-    s.orbGlow = THREE.MathUtils.lerp(s.orbGlow, target.orbGlow, lerpAmt);
+    // 2. Phase motion — camera, group transforms
+    applyPhaseMotion(currentState.current, target, delta, camera, pointerLerpX, pointerLerpY, heroArtifactRef, supportRef);
 
-    // 3. Camera position with pointer parallax
-    const px = (pointerLerpX - 0.5) * POINTER_RANGES.cameraPointerX;
-    const py = (pointerLerpY - 0.5) * -POINTER_RANGES.cameraPointerY;
-    (camera as THREE.PerspectiveCamera).position.set(
-      px,
-      s.cameraY + py,
-      s.cameraZ,
-    );
-    camera.lookAt(0, 0.8, 0);
+    // 3. Pointer motion — scene tilt, per-node shift
+    applyPointerMotion(sceneRef, nodes, pointerLerpX, pointerLerpY, currentState.current.sceneTiltMultiplier, originalPositions.current);
 
-    // 4. Scene root tilt from pointer
-    if (sceneRootRef.current) {
-      const tiltMul = s.sceneTiltMultiplier;
-      sceneRootRef.current.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.sceneTiltY * tiltMul;
-      sceneRootRef.current.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.sceneTiltX * tiltMul;
-    }
+    // 4. Secondary motion — orb float etc
+    applySecondaryMotion(nodes, state.clock.elapsedTime, originalPositions.current);
 
-    // 5. Per-node secondary motion
-    const elapsed = state.clock.elapsedTime;
-    Object.entries(nodes).forEach(([key, node]) => {
-      if (!node) return;
-      const behaviour = NODE_BEHAVIOUR[key as SemanticNodeKey];
-      if (!behaviour) return;
-
-      const orig = originalPositions.current.get(key);
-      if (!orig) return;
-
-      let yOffset = 0;
-      let xShift = 0;
-      let zShift = 0;
-
-      // Float animation (orb)
-      if (behaviour.float) {
-        yOffset = Math.sin(elapsed * behaviour.float.speed * Math.PI * 2) * behaviour.float.amp;
-      }
-
-      // Pointer-driven shift (tickets, rails)
-      if (behaviour.pointerShift) {
-        xShift = (pointerLerpX - 0.5) * behaviour.pointerShift.x;
-        zShift = (pointerLerpY - 0.5) * behaviour.pointerShift.y;
-      }
-
-      // Artifact tilt
-      if (behaviour.pointerTilt) {
-        node.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.artifactTiltY;
-        node.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.artifactTiltX;
-      }
-
-      node.position.set(
-        orig.x + xShift,
-        orig.y + yOffset,
-        orig.z + zShift,
-      );
-    });
-
-    // 6. Grain
+    // 5. Grain
     if (grainRef.current) {
-      grainRef.current.uniforms.uTime.value = elapsed;
+      grainRef.current.uniforms.uTime.value = state.clock.elapsedTime;
     }
   });
 
   return (
     <>
-      {/* Lighting — authored at runtime, not from GLB */}
+      {/* Lighting */}
       <ambientLight intensity={LIGHTING.ambient.intensity} />
       <directionalLight
         position={LIGHTING.key.position}
@@ -193,16 +255,33 @@ function SceneContent({ progress, phase, localProgress }: StageProps) {
         intensity={LIGHTING.fill.intensity}
       />
 
-      {/* GLB scene */}
-      <group ref={sceneRootRef}>
-        {loaded && glbScene && <primitive object={glbScene} />}
-      </group>
+      {/* Scene graph with explicit groups */}
+      <group ref={sceneRef}>
+        {/* Hero artifact group: dossier + pedestal */}
+        <group ref={heroArtifactRef}>
+          {loaded && grouped.heroArtifact.map((node, i) => (
+            <primitive key={`hero-${i}`} object={node} />
+          ))}
+        </group>
 
-      {/* Grain overlay — screen-space, closest to camera */}
-      <mesh position={[0, 1, 3.5]} renderOrder={10}>
-        <planeGeometry args={[14, 10]} />
-        <primitive object={grainMat} ref={grainRef} attach="material" />
-      </mesh>
+        {/* Support group: orb, tickets, rails */}
+        <group ref={supportRef}>
+          {loaded && grouped.support.map((node, i) => (
+            <primitive key={`support-${i}`} object={node} />
+          ))}
+        </group>
+
+        {/* Atmosphere group: portal + grain */}
+        <group>
+          {loaded && grouped.atmosphere.map((node, i) => (
+            <primitive key={`atmo-${i}`} object={node} />
+          ))}
+          <mesh position={[0, 1, 3.5]} renderOrder={10}>
+            <planeGeometry args={[14, 10]} />
+            <primitive object={grainMat} ref={grainRef} attach="material" />
+          </mesh>
+        </group>
+      </group>
     </>
   );
 }

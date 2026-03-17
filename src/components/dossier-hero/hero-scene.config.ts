@@ -21,6 +21,24 @@ export const NODE_MAP = {
 
 export type SemanticNodeKey = (typeof NODE_MAP)[keyof typeof NODE_MAP];
 
+/* ─── Group assignments ─── */
+export type SceneGroupId = 'heroArtifact' | 'support' | 'atmosphere';
+
+export const GROUP_ASSIGNMENT: Record<SemanticNodeKey, SceneGroupId> = {
+  dossier: 'heroArtifact',
+  dossierCover: 'heroArtifact',
+  pedestalBase: 'heroArtifact',
+  pedestalMid: 'heroArtifact',
+  pedestalTop: 'heroArtifact',
+  orb: 'support',
+  ticketA: 'support',
+  ticketB: 'support',
+  ticketC: 'support',
+  railRight: 'support',
+  railUpper: 'support',
+  portal: 'atmosphere',
+};
+
 /* ─── Per-node behaviour flags ─── */
 export interface NodeBehaviour {
   castShadow?: boolean;
@@ -80,11 +98,22 @@ export const LIGHTING = {
   },
 };
 
-/* ─── Phase scene states ─── */
+/* ─── Phase scene states (extended with per-group motion) ─── */
 export interface PhaseSceneState {
+  /* Camera rig */
   cameraZ: number;
   cameraY: number;
+  /* Pointer response */
   sceneTiltMultiplier: number;
+  /* Hero artifact group */
+  heroArtifactY: number;
+  heroArtifactScale: number;
+  /* Support group */
+  supportY: number;
+  supportSpread: number;
+  /* Atmosphere */
+  atmosphereOpacity: number;
+  /* Orb emissive */
   orbGlow: number;
 }
 
@@ -93,30 +122,55 @@ export const PHASE_SCENE: Record<DossierPhaseId, PhaseSceneState> = {
     cameraZ: 6.0,
     cameraY: 1.2,
     sceneTiltMultiplier: 1.0,
+    heroArtifactY: 0,
+    heroArtifactScale: 1.0,
+    supportY: 0,
+    supportSpread: 0,
+    atmosphereOpacity: 0.6,
     orbGlow: 0.3,
   },
   open: {
     cameraZ: 5.4,
     cameraY: 1.1,
     sceneTiltMultiplier: 1.2,
+    heroArtifactY: 0,
+    heroArtifactScale: 1.05,
+    supportY: 0.05,
+    supportSpread: 0.02,
+    atmosphereOpacity: 0.8,
     orbGlow: 0.6,
   },
   flight: {
     cameraZ: 4.8,
     cameraY: 1.4,
     sceneTiltMultiplier: 0.8,
+    heroArtifactY: 0.15,
+    heroArtifactScale: 0.95,
+    supportY: 0.2,
+    supportSpread: 0.06,
+    atmosphereOpacity: 1.0,
     orbGlow: 1.0,
   },
   close: {
     cameraZ: 5.2,
     cameraY: 1.0,
     sceneTiltMultiplier: 0.6,
+    heroArtifactY: 0.08,
+    heroArtifactScale: 0.9,
+    supportY: 0.1,
+    supportSpread: 0.03,
+    atmosphereOpacity: 0.7,
     orbGlow: 0.5,
   },
   handoff: {
     cameraZ: 6.5,
     cameraY: 1.5,
     sceneTiltMultiplier: 0.3,
+    heroArtifactY: 0.3,
+    heroArtifactScale: 0.8,
+    supportY: 0.25,
+    supportSpread: 0.08,
+    atmosphereOpacity: 0.3,
     orbGlow: 0.2,
   },
 };
