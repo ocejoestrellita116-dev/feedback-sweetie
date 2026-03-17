@@ -11,12 +11,10 @@ export function FlagshipTeaser({ data, subtleTransform }: Props) {
 
   return (
     <div
-      className="max-w-sm w-full mx-6 p-5 rounded-lg pointer-events-auto"
+      className="max-w-sm w-full mx-6 p-5 pointer-events-auto"
       style={{
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        background: 'hsl(var(--background) / 0.2)',
         transform: subtleTransform,
+        textShadow: '0 0 40px hsl(var(--background)), 0 1px 2px hsl(var(--background) / 0.5)',
       }}
     >
       {/* Eyebrow with gold accent rule */}
@@ -30,12 +28,7 @@ export function FlagshipTeaser({ data, subtleTransform }: Props) {
         </p>
       </div>
 
-      <h3
-        className="font-serif text-xl text-foreground mb-1"
-        style={{
-          textShadow: '0 0 20px hsl(var(--background)), 0 0 40px hsl(var(--background) / 0.5)',
-        }}
-      >
+      <h3 className="font-serif text-xl text-foreground mb-1">
         {data.title}
       </h3>
       <p className="text-sm text-dossier-navy-soft font-sans mb-1">{data.outcome}</p>
