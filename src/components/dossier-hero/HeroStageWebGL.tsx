@@ -272,6 +272,7 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
       <directionalLight
         position={LIGHTING.key.position}
         intensity={LIGHTING.key.intensity}
+        color={LIGHTING.key.color}
         castShadow
         shadow-mapSize-width={LIGHTING.key.shadowMapSize}
         shadow-mapSize-height={LIGHTING.key.shadowMapSize}
@@ -281,11 +282,17 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
         shadow-camera-right={4}
         shadow-camera-top={4}
         shadow-camera-bottom={-4}
-        shadow-bias={-0.001}
+        shadow-bias={LIGHTING.key.shadowBias}
       />
       <directionalLight
         position={LIGHTING.fill.position}
         intensity={LIGHTING.fill.intensity}
+        color={LIGHTING.fill.color}
+      />
+      <directionalLight
+        position={LIGHTING.rim.position}
+        intensity={LIGHTING.rim.intensity}
+        color={LIGHTING.rim.color}
       />
 
       {/* Scene graph with explicit groups */}
@@ -325,14 +332,20 @@ export function HeroStageWebGL(props: StageProps) {
   return (
     <div className="absolute inset-0">
       <Canvas
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
+        }}
         camera={{
           fov: CAMERA_DEFAULTS.fov,
           near: CAMERA_DEFAULTS.near,
           far: CAMERA_DEFAULTS.far,
           position: CAMERA_DEFAULTS.position,
         }}
-        shadows
+        shadows="soft"
         style={{ position: 'absolute', inset: 0 }}
         dpr={[1, 1.5]}
         frameloop="always"
