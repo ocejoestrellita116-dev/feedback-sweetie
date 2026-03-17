@@ -1,0 +1,125 @@
+import type { DossierPhaseId } from './dossier-hero.types';
+
+/* ─── GLB Asset ─── */
+export const GLB_URL = '/hero/support-hero.glb';
+
+/* ─── Node name lookup: Blender name → semantic key ─── */
+export const NODE_MAP = {
+  DossierCore: 'dossier',
+  DossierCover: 'dossierCover',
+  SupportOrb: 'orb',
+  PedestalBase: 'pedestalBase',
+  PedestalMid: 'pedestalMid',
+  PedestalTop: 'pedestalTop',
+  TicketSlab_A: 'ticketA',
+  TicketSlab_B: 'ticketB',
+  TicketSlab_C: 'ticketC',
+  PortalBack: 'portal',
+  FrameRail_Right: 'railRight',
+  FrameRail_Upper: 'railUpper',
+} as const;
+
+export type SemanticNodeKey = (typeof NODE_MAP)[keyof typeof NODE_MAP];
+
+/* ─── Per-node behaviour flags ─── */
+export interface NodeBehaviour {
+  castShadow?: boolean;
+  receiveShadow?: boolean;
+  /** Apply pointer-driven tilt */
+  pointerTilt?: boolean;
+  /** Sin-based float animation */
+  float?: { amp: number; speed: number };
+  /** Pointer-driven lateral shift */
+  pointerShift?: { x: number; y: number };
+}
+
+export const NODE_BEHAVIOUR: Partial<Record<SemanticNodeKey, NodeBehaviour>> = {
+  dossier:      { castShadow: true, pointerTilt: true },
+  dossierCover: { castShadow: true, pointerTilt: true },
+  orb:          { castShadow: true, pointerTilt: true, float: { amp: 0.06, speed: 0.35 } },
+  pedestalBase: { receiveShadow: true },
+  pedestalMid:  { receiveShadow: true },
+  pedestalTop:  { receiveShadow: true, castShadow: true },
+  ticketA:      { castShadow: true, pointerShift: { x: 0.06, y: 0.04 } },
+  ticketB:      { castShadow: true, pointerShift: { x: 0.08, y: 0.05 } },
+  ticketC:      { castShadow: true, pointerShift: { x: 0.04, y: 0.03 } },
+  portal:       { receiveShadow: true },
+  railRight:    { pointerShift: { x: 0.03, y: 0.02 } },
+  railUpper:    { pointerShift: { x: 0.02, y: 0.04 } },
+};
+
+/* ─── Camera defaults ─── */
+export const CAMERA_DEFAULTS = {
+  fov: 40,
+  near: 0.1,
+  far: 50,
+  position: [0, 1.2, 6] as [number, number, number],
+};
+
+/* ─── Pointer parallax ranges (desktop) ─── */
+export const POINTER_RANGES = {
+  sceneTiltY: 0.096,
+  sceneTiltX: 0.042,
+  artifactTiltY: 0.05,
+  artifactTiltX: 0.028,
+  cameraPointerX: 0.08,
+  cameraPointerY: 0.05,
+};
+
+/* ─── Lighting ─── */
+export const LIGHTING = {
+  ambient: { intensity: 0.4 },
+  key: {
+    intensity: 1.6,
+    position: [3, 5, 4] as [number, number, number],
+    shadowMapSize: 1024,
+  },
+  fill: {
+    intensity: 0.5,
+    position: [-3, 2, 2] as [number, number, number],
+  },
+};
+
+/* ─── Phase scene states ─── */
+export interface PhaseSceneState {
+  cameraZ: number;
+  cameraY: number;
+  sceneTiltMultiplier: number;
+  orbGlow: number;
+}
+
+export const PHASE_SCENE: Record<DossierPhaseId, PhaseSceneState> = {
+  closed: {
+    cameraZ: 6.0,
+    cameraY: 1.2,
+    sceneTiltMultiplier: 1.0,
+    orbGlow: 0.3,
+  },
+  open: {
+    cameraZ: 5.4,
+    cameraY: 1.1,
+    sceneTiltMultiplier: 1.2,
+    orbGlow: 0.6,
+  },
+  flight: {
+    cameraZ: 4.8,
+    cameraY: 1.4,
+    sceneTiltMultiplier: 0.8,
+    orbGlow: 1.0,
+  },
+  close: {
+    cameraZ: 5.2,
+    cameraY: 1.0,
+    sceneTiltMultiplier: 0.6,
+    orbGlow: 0.5,
+  },
+  handoff: {
+    cameraZ: 6.5,
+    cameraY: 1.5,
+    sceneTiltMultiplier: 0.3,
+    orbGlow: 0.2,
+  },
+};
+
+/** Lerp speed for scene transitions per frame */
+export const SCENE_LERP = 0.06;
