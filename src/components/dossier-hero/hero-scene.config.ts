@@ -80,8 +80,8 @@ export const POINTER_RANGES = {
   sceneTiltX: 0.042,
   artifactTiltY: 0.05,
   artifactTiltX: 0.028,
-  cameraPointerX: 0.08,
-  cameraPointerY: 0.05,
+  cameraPointerX: 0.02,
+  cameraPointerY: 0.015,
 };
 
 /* ─── Lighting ─── */

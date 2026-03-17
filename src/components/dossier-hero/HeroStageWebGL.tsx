@@ -154,21 +154,48 @@ function applyPointerMotion(
   });
 }
 
+/** Orb pointer-lag state (module-level to persist across frames) */
+const orbLag = { x: 0.5, y: 0.5 };
+const ORB_LAG_FACTOR = 0.03; // much slower than main lerp → trailing feel
+const ORB_LAG_RANGE = 0.12;  // max positional offset from pointer
+
 function applySecondaryMotion(
   nodes: SemanticNodes,
   elapsed: number,
   originals: Map<string, THREE.Vector3>,
+  pointerLerpX: number,
+  pointerLerpY: number,
 ) {
+  // Update orb lag toward current pointer
+  orbLag.x += (pointerLerpX - orbLag.x) * ORB_LAG_FACTOR;
+  orbLag.y += (pointerLerpY - orbLag.y) * ORB_LAG_FACTOR;
+
   Object.entries(nodes).forEach(([key, node]) => {
     if (!node) return;
     const behaviour = NODE_BEHAVIOUR[key as SemanticNodeKey];
-    if (!behaviour?.float) return;
+    if (!behaviour) return;
 
     const orig = originals.get(key);
     if (!orig) return;
 
-    const yOffset = Math.sin(elapsed * behaviour.float.speed * Math.PI * 2) * behaviour.float.amp;
-    node.position.y = orig.y + yOffset;
+    let yOffset = 0;
+
+    // Sin-based float
+    if (behaviour.float) {
+      yOffset = Math.sin(elapsed * behaviour.float.speed * Math.PI * 2) * behaviour.float.amp;
+    }
+
+    // Orb pointer lag offset
+    if (key === 'orb') {
+      const lagX = (orbLag.x - 0.5) * ORB_LAG_RANGE;
+      const lagY = (orbLag.y - 0.5) * -ORB_LAG_RANGE * 0.6;
+      node.position.x = orig.x + lagX;
+      node.position.z = orig.z + lagY;
+    }
+
+    if (yOffset !== 0) {
+      node.position.y = orig.y + yOffset;
+    }
   });
 }
 
