@@ -52,8 +52,8 @@ export interface NodeBehaviour {
 }
 
 export const NODE_BEHAVIOUR: Partial<Record<SemanticNodeKey, NodeBehaviour>> = {
-  dossier:      { castShadow: true, pointerTilt: true },
-  dossierCover: { castShadow: true, pointerTilt: true },
+  dossier:      { castShadow: true },
+  dossierCover: { castShadow: true },
   orb:          { castShadow: true, pointerTilt: true, float: { amp: 0.06, speed: 0.35 } },
   pedestalBase: { receiveShadow: true },
   pedestalMid:  { receiveShadow: true },
@@ -80,8 +80,8 @@ export const POINTER_RANGES = {
   sceneTiltX: 0.042,
   artifactTiltY: 0.05,
   artifactTiltX: 0.028,
-  cameraPointerX: 0.08,
-  cameraPointerY: 0.05,
+  cameraPointerX: 0.02,
+  cameraPointerY: 0.015,
 };
 
 /* ─── Lighting ─── */
