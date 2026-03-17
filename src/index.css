@@ -121,7 +121,13 @@
     font-family: 'DM Sans', system-ui, sans-serif;
   }
 
-  .cursor-none, .cursor-none * {
+  html[data-cursor-visible='true'] body,
+  html[data-cursor-visible='true'] a,
+  html[data-cursor-visible='true'] button,
+  html[data-cursor-visible='true'] [role="button"],
+  html[data-cursor-visible='true'] input,
+  html[data-cursor-visible='true'] textarea,
+  html[data-cursor-visible='true'] select {
     cursor: none !important;
   }
 
