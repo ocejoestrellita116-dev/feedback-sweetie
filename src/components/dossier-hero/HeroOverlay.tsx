@@ -46,7 +46,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
   const proofVisible = proofOpacity > 0.1;
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none pb-[env(safe-area-inset-bottom)]">
       {/* ── CLOSED: Elliptical scrim + floating text ── */}
       <div
         className="relative text-center transition-all duration-300 max-w-xl px-6"
