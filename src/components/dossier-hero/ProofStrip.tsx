@@ -16,15 +16,8 @@ export function ProofStrip({ items, visible = true }: Props) {
         }}
       />
 
-      {/* Scrim container */}
-      <div
-        className="flex flex-wrap items-center justify-center gap-8 md:gap-12 px-6 py-4 rounded-lg"
-        style={{
-          backdropFilter: 'blur(6px)',
-          WebkitBackdropFilter: 'blur(6px)',
-          background: 'hsl(var(--background) / 0.15)',
-        }}
-      >
+      {/* Bare flex row — no backdrop panel */}
+      <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 px-6 py-4">
         {items.map((item, i) => (
           <div
             key={item.label}

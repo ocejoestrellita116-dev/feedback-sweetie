@@ -26,7 +26,6 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
   const subtleTransform = `translate(${px * SUBTLE_PX}px, ${py * SUBTLE_PX}px)`;
   const [textRevealed, setTextRevealed] = useState(false);
 
-  // Stagger text reveal ~200ms after enter
   useEffect(() => {
     if (entered) {
       const t = setTimeout(() => setTextRevealed(true), 200);
@@ -34,14 +33,12 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
     }
   }, [entered]);
 
-  // Flagship opacity: fades in from 0.55, full at 0.62
   const flagshipOpacity = progress < FLAGSHIP_FADE_START ? 0
     : progress < 0.62 ? (progress - FLAGSHIP_FADE_START) / 0.07
     : phase === 'close' ? 1
     : phase === 'handoff' ? 1 - localProgress
     : 0;
 
-  // Proof strip fades out as flagship fades in
   const proofOpacity = phase === 'flight'
     ? (progress < FLAGSHIP_FADE_START ? 1 : 1 - ((progress - FLAGSHIP_FADE_START) / 0.07))
     : 0;
@@ -50,7 +47,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
-      {/* ── CLOSED: Poster frame with layered readability ── */}
+      {/* ── CLOSED: Elliptical scrim + floating text ── */}
       <div
         className="relative text-center transition-all duration-300 max-w-xl px-6"
         style={{
@@ -58,22 +55,19 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
           transform: phase === 'closed' ? (textRevealed ? 'translateY(0)' : 'translateY(8px)') : `translateY(${-localProgress * 30}px)`,
         }}
       >
-        {/* Layer 1 — Radial scrim matte */}
+        {/* Elliptical tonal scrim — no blur, no panel */}
         <div
-          className="absolute inset-0 -inset-x-12 -inset-y-8 rounded-3xl"
+          className="absolute -inset-x-16 -inset-y-12 pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse 120% 130% at 50% 50%, hsl(var(--background) / 0.85) 0%, hsl(var(--background) / 0.4) 60%, transparent 100%)',
-            pointerEvents: 'none',
+            background: 'radial-gradient(ellipse 140% 160% at 50% 48%, hsl(var(--background) / 0.7) 0%, hsl(var(--background) / 0.2) 50%, transparent 80%)',
           }}
         />
-        {/* Layer 2 — Backdrop blur panel */}
+
+        {/* Text content floats directly on scrim */}
         <div
-          className="relative rounded-2xl px-8 py-6"
+          className="relative px-8 py-6"
           style={{
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            background: 'hsl(var(--background) / 0.25)',
-            textShadow: '0 0 30px hsl(var(--background)), 0 0 60px hsl(var(--background)), 0 0 90px hsl(var(--background) / 0.8), 0 1px 3px hsl(var(--background) / 0.6), 0 0 120px hsl(var(--background) / 0.5)',
+            textShadow: '0 0 40px hsl(var(--background)), 0 1px 2px hsl(var(--background) / 0.5)',
           }}
         >
           <p className="text-xs tracking-[0.25em] uppercase text-foreground/70 mb-3 font-sans">
@@ -87,7 +81,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
           </p>
           <a
             href="/resume"
-            className="inline-flex items-center gap-2 px-5 py-3 text-sm font-sans font-medium border border-foreground/40 rounded-md text-foreground bg-background/20 hover:bg-foreground hover:text-background transition-colors pointer-events-auto"
+            className="inline-flex items-center gap-2 px-5 py-3 text-sm font-sans font-medium border border-foreground/20 rounded-md text-foreground bg-transparent hover:bg-foreground hover:text-background transition-colors pointer-events-auto"
             {...cursorHover}
           >
             {c.closed.cta.label}
@@ -96,7 +90,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
         </div>
       </div>
 
-      {/* ── OPEN: Expansion with scrim ── */}
+      {/* ── OPEN: Text-shadow only, no backdrop panel ── */}
       <div
         className="absolute inset-0 flex items-center justify-center transition-all duration-300"
         style={{
@@ -105,12 +99,9 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
         }}
       >
         <p
-          className="text-lg md:text-xl text-center text-foreground/70 font-sans max-w-md px-8 py-4 leading-relaxed rounded-xl"
+          className="text-lg md:text-xl text-center text-foreground/70 font-sans max-w-md px-8 py-4 leading-relaxed"
           style={{
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            background: 'hsl(var(--background) / 0.2)',
-            textShadow: '0 0 30px hsl(var(--background)), 0 0 60px hsl(var(--background) / 0.6)',
+            textShadow: '0 0 40px hsl(var(--background)), 0 0 80px hsl(var(--background) / 0.5)',
           }}
         >
           {c.open.expansion}
@@ -136,18 +127,18 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
         <FlagshipTeaser data={c.flagship} subtleTransform={subtleTransform} />
       </div>
 
-      {/* ── HANDOFF: Final CTAs + scroll cue ── */}
+      {/* ── HANDOFF: Lighter CTAs + scroll cue ── */}
       <div
         className="absolute inset-0 flex flex-col items-center justify-center transition-all duration-300"
         style={{
           opacity: phase === 'handoff' ? Math.min(localProgress * 2, 1) : 0,
         }}
       >
-        {/* Radial scrim behind CTAs */}
+        {/* Subtle radial scrim */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse 60% 50% at 50% 50%, hsl(var(--background) / 0.4) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse 60% 50% at 50% 50%, hsl(var(--background) / 0.25) 0%, transparent 70%)',
           }}
         />
 
@@ -156,7 +147,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
             <a
               key={cta.label}
               href={cta.href}
-              className="px-5 py-3 text-sm font-sans font-medium border border-foreground/40 rounded-md text-foreground bg-background/30 backdrop-blur-sm hover:bg-foreground hover:text-background transition-all duration-spatial"
+              className="px-5 py-3 text-sm font-sans font-medium border border-foreground/20 rounded-md text-foreground bg-transparent hover:bg-foreground hover:text-background transition-all duration-spatial"
               style={{
                 transitionDelay: phase === 'handoff' ? `${i * 120}ms` : '0ms',
                 transitionTimingFunction: 'var(--ease-expo-out)',
