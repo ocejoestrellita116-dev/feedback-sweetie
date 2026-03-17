@@ -21,6 +21,7 @@ interface StageProps {
   progress: number;
   phase: DossierPhaseId;
   localProgress: number;
+  onCriticalMissing?: () => void;
 }
 
 /* ─── Helpers ─── */
