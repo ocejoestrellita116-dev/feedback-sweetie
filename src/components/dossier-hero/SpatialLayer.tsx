@@ -34,7 +34,7 @@ export function SpatialLayer({ phase, localProgress, progress }: Props) {
           key={w}
           className="absolute text-xs font-sans text-dossier-whisper transition-opacity duration-200"
           style={{
-            opacity: phase === 'open' ? Math.min(localProgress * 1.5, 0.5) : 0.3,
+            opacity: phase === 'open' ? Math.min(localProgress * 1.5, 0.35) : 0.2,
             top: `${35 + i * 30}%`,
             [i % 2 === 0 ? 'left' : 'right']: '5%',
             transitionDelay: `${i * 60}ms`,

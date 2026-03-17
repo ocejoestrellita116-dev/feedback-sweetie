@@ -67,7 +67,11 @@ export function useGLBScene(): GLBLoaderResult {
       }
     });
 
-    setResult({ nodes, grouped, loaded: Object.keys(nodes).length > 0 });
+    const missing = CRITICAL_NODES.filter(k => !nodes[k]);
+    if (missing.length > 0) {
+      console.warn(`[GLB] Critical nodes missing: ${missing.join(', ')}. Falling back to 2D sequence.`);
+    }
+    setResult({ nodes, grouped, loaded: Object.keys(nodes).length > 0, criticalMissing: missing.length > 0 });
   }, [scene]);
 
   return result;

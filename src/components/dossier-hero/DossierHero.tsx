@@ -53,11 +53,12 @@ export function DossierHero() {
         {/* Sticky viewport — pinned while scrolling through runway */}
         <div className="sticky top-0 h-screen w-full overflow-hidden" style={{ background: 'hsl(var(--background))' }}>
 
-          {webglAvailable ? (
+          {useWebGL ? (
             <HeroStageWebGL
               progress={progress}
               phase={phase}
               localProgress={localProgress}
+              onCriticalMissing={() => setGlbFailed(true)}
             />
           ) : (
             <>
