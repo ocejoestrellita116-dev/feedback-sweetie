@@ -282,6 +282,14 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
 
   return (
     <>
+      {/* Environment for PBR reflections */}
+      <Environment
+        preset={ENVIRONMENT.preset}
+        environmentIntensity={ENVIRONMENT.intensity}
+        backgroundBlurriness={ENVIRONMENT.backgroundBlurriness}
+        background={ENVIRONMENT.background}
+      />
+
       {/* Lighting */}
       <ambientLight intensity={LIGHTING.ambient.intensity} />
       <directionalLight
