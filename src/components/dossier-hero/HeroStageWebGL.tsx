@@ -202,7 +202,7 @@ function applySecondaryMotion(
 /* ─── Scene content (lives inside Canvas) ─── */
 
 function SceneContent({ progress, phase, localProgress, onCriticalMissing }: StageProps) {
-  const { pointerLerpX, pointerLerpY } = useExperience();
+  const { pointerLerpX, pointerLerpY, isTouch, reducedMotion } = useExperience();
   const { camera } = useThree();
   const { nodes, grouped, loaded, criticalMissing } = useGLBScene();
 
