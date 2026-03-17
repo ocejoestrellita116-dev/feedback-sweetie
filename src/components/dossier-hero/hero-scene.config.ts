@@ -113,6 +113,7 @@ export const ENVIRONMENT = {
   backgroundBlurriness: 1,
   background: false,
   sceneBackground: '#f5f0e8',
+  sceneBackgroundDark: '#121826',
 };
 
 /* ─── Phase scene states (extended with per-group motion) ─── */

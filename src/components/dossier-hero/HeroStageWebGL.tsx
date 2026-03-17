@@ -210,7 +210,15 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
 
   // Set warm cream scene background to match Blender renders
   useEffect(() => {
-    scene.background = new THREE.Color(ENVIRONMENT.sceneBackground);
+    const root = document.documentElement;
+    const update = () => {
+      const isDark = root.classList.contains('dark');
+      scene.background = new THREE.Color(isDark ? ENVIRONMENT.sceneBackgroundDark : ENVIRONMENT.sceneBackground);
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
   }, [scene]);
 
   useEffect(() => {
