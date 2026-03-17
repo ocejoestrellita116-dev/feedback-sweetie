@@ -257,7 +257,7 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
     applyPointerMotion(sceneRef, nodes, pointerLerpX, pointerLerpY, currentState.current.sceneTiltMultiplier, originalPositions.current);
 
     // 4. Secondary motion — orb float etc
-    applySecondaryMotion(nodes, state.clock.elapsedTime, originalPositions.current);
+    applySecondaryMotion(nodes, state.clock.elapsedTime, originalPositions.current, pointerLerpX, pointerLerpY);
 
     // 5. Grain
     if (grainRef.current) {
