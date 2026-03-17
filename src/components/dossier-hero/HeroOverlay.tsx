@@ -73,7 +73,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
           <p className="text-xs tracking-[0.25em] uppercase text-foreground/70 mb-3 font-sans">
             {c.closed.eyebrow}
           </p>
-          <h1 className="text-6xl md:text-8xl font-serif text-foreground mb-4 leading-none tracking-display">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-serif text-foreground mb-4 leading-none tracking-display">
             {c.closed.headline}
           </h1>
           <p className="text-base md:text-lg text-foreground/60 font-sans leading-relaxed mb-6">
