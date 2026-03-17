@@ -357,10 +357,10 @@ export function HeroStageWebGL(props: StageProps) {
       <Canvas
         gl={{
           antialias: true,
-          alpha: true,
+          alpha: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          toneMappingExposure: 1.5,
         }}
         camera={{
           fov: CAMERA_DEFAULTS.fov,
