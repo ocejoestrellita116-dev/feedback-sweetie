@@ -37,9 +37,22 @@ export function DossierHero() {
   const loaded = useWebGL ? glbReady : framesLoaded;
   const loadProgress = useWebGL ? (glbReady ? 1 : 0.5) : frameLoadProgress;
 
+  const [sceneVisible, setSceneVisible] = useState(false);
+
   useEffect(() => {
-    setHeroActive(progress > 0 && phase !== 'handoff');
-  }, [progress, phase, setHeroActive]);
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setSceneVisible(entry.isIntersecting),
+      { threshold: 0 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setHeroActive(sceneVisible && phase !== 'handoff');
+  }, [sceneVisible, phase, setHeroActive]);
 
   return (
     <>
