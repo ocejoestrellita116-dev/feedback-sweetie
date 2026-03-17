@@ -110,7 +110,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
 
       {/* ── FLIGHT: Proof strip ── */}
       <div
-        className="absolute bottom-[15%] left-0 right-0 transition-all duration-200"
+        className="absolute bottom-[8%] sm:bottom-[15%] left-0 right-0 transition-all duration-200"
         style={{ opacity: proofOpacity, transform: subtleTransform }}
       >
         <ProofStrip items={c.flight.proofStrip} visible={proofVisible} />
