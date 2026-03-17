@@ -118,7 +118,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
 
       {/* ── FLIGHT→CLOSE: Flagship teaser ── */}
       <div
-        className="absolute bottom-[12%] left-0 right-0 flex justify-center transition-all duration-200"
+        className="absolute bottom-[6%] sm:bottom-[12%] left-0 right-0 flex justify-center transition-all duration-200"
         style={{
           opacity: flagshipOpacity,
           transform: `translateY(${(1 - flagshipOpacity) * 16}px)`,
