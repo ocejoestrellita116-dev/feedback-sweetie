@@ -46,7 +46,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
   const proofVisible = proofOpacity > 0.1;
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none pb-[env(safe-area-inset-bottom)]">
       {/* ── CLOSED: Elliptical scrim + floating text ── */}
       <div
         className="relative text-center transition-all duration-300 max-w-xl px-6"
@@ -73,7 +73,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
           <p className="text-xs tracking-[0.25em] uppercase text-foreground/70 mb-3 font-sans">
             {c.closed.eyebrow}
           </p>
-          <h1 className="text-6xl md:text-8xl font-serif text-foreground mb-4 leading-none tracking-display">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-serif text-foreground mb-4 leading-none tracking-display">
             {c.closed.headline}
           </h1>
           <p className="text-base md:text-lg text-foreground/60 font-sans leading-relaxed mb-6">
@@ -110,7 +110,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
 
       {/* ── FLIGHT: Proof strip ── */}
       <div
-        className="absolute bottom-[15%] left-0 right-0 transition-all duration-200"
+        className="absolute bottom-[8%] sm:bottom-[15%] left-0 right-0 transition-all duration-200"
         style={{ opacity: proofOpacity, transform: subtleTransform }}
       >
         <ProofStrip items={c.flight.proofStrip} visible={proofVisible} />
@@ -118,7 +118,7 @@ export function HeroOverlay({ phase, localProgress, progress }: Props) {
 
       {/* ── FLIGHT→CLOSE: Flagship teaser ── */}
       <div
-        className="absolute bottom-[12%] left-0 right-0 flex justify-center transition-all duration-200"
+        className="absolute bottom-[6%] sm:bottom-[12%] left-0 right-0 flex justify-center transition-all duration-200"
         style={{
           opacity: flagshipOpacity,
           transform: `translateY(${(1 - flagshipOpacity) * 16}px)`,

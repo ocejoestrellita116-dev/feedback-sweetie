@@ -202,7 +202,7 @@ function applySecondaryMotion(
 /* ─── Scene content (lives inside Canvas) ─── */
 
 function SceneContent({ progress, phase, localProgress, onCriticalMissing }: StageProps) {
-  const { pointerLerpX, pointerLerpY } = useExperience();
+  const { pointerLerpX, pointerLerpY, isTouch, reducedMotion } = useExperience();
   const { camera } = useThree();
   const { nodes, grouped, loaded, criticalMissing } = useGLBScene();
 
@@ -244,6 +244,10 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
   useFrame((state, delta) => {
     if (!loaded) return;
 
+    // Neutral pointer for touch devices; actual lerped pointer for desktop
+    const ptrX = isTouch ? 0.5 : pointerLerpX;
+    const ptrY = isTouch ? 0.5 : pointerLerpY;
+
     // 1. Compute target from phase + localProgress blend
     const phaseKeys = Object.keys(PHASE_SCENE) as DossierPhaseId[];
     const phaseIdx = phaseKeys.indexOf(phase);
@@ -251,13 +255,17 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
     const target = lerpState(PHASE_SCENE[phase], PHASE_SCENE[phaseKeys[nextIdx]], localProgress);
 
     // 2. Phase motion — camera, group transforms
-    applyPhaseMotion(currentState.current, target, delta, camera, pointerLerpX, pointerLerpY, heroArtifactRef, supportRef);
+    applyPhaseMotion(currentState.current, target, delta, camera, ptrX, ptrY, heroArtifactRef, supportRef);
 
-    // 3. Pointer motion — scene tilt, per-node shift
-    applyPointerMotion(sceneRef, nodes, pointerLerpX, pointerLerpY, currentState.current.sceneTiltMultiplier, originalPositions.current);
+    // 3. Pointer motion — scene tilt, per-node shift (skip on touch)
+    if (!isTouch) {
+      applyPointerMotion(sceneRef, nodes, ptrX, ptrY, currentState.current.sceneTiltMultiplier, originalPositions.current);
+    }
 
-    // 4. Secondary motion — orb float etc
-    applySecondaryMotion(nodes, state.clock.elapsedTime, originalPositions.current, pointerLerpX, pointerLerpY);
+    // 4. Secondary motion — orb float etc (skip on reduced motion)
+    if (!reducedMotion) {
+      applySecondaryMotion(nodes, state.clock.elapsedTime, originalPositions.current, ptrX, ptrY);
+    }
 
     // 5. Grain
     if (grainRef.current) {
