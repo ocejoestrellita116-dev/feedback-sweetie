@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DossierPhaseId } from './dossier-hero.types';
 import {
@@ -8,6 +9,7 @@ import {
   POINTER_RANGES,
   CAMERA_DEFAULTS,
   LIGHTING,
+  ENVIRONMENT,
   NODE_BEHAVIOUR,
   type PhaseSceneState,
   type SemanticNodeKey,
@@ -203,8 +205,13 @@ function applySecondaryMotion(
 
 function SceneContent({ progress, phase, localProgress, onCriticalMissing }: StageProps) {
   const { pointerLerpX, pointerLerpY, isTouch, reducedMotion } = useExperience();
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
   const { nodes, grouped, loaded, criticalMissing } = useGLBScene();
+
+  // Set warm cream scene background to match Blender renders
+  useEffect(() => {
+    scene.background = new THREE.Color(ENVIRONMENT.sceneBackground);
+  }, [scene]);
 
   useEffect(() => {
     if (criticalMissing && onCriticalMissing) onCriticalMissing();
@@ -275,6 +282,14 @@ function SceneContent({ progress, phase, localProgress, onCriticalMissing }: Sta
 
   return (
     <>
+      {/* Environment for PBR reflections */}
+      <Environment
+        preset={ENVIRONMENT.preset}
+        environmentIntensity={ENVIRONMENT.intensity}
+        backgroundBlurriness={ENVIRONMENT.backgroundBlurriness}
+        background={ENVIRONMENT.background}
+      />
+
       {/* Lighting */}
       <ambientLight intensity={LIGHTING.ambient.intensity} />
       <directionalLight
@@ -342,10 +357,10 @@ export function HeroStageWebGL(props: StageProps) {
       <Canvas
         gl={{
           antialias: true,
-          alpha: true,
+          alpha: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          toneMappingExposure: 1.5,
         }}
         camera={{
           fov: CAMERA_DEFAULTS.fov,

@@ -86,9 +86,9 @@ export const POINTER_RANGES = {
 
 /* ─── Lighting ─── */
 export const LIGHTING = {
-  ambient: { intensity: 0.25 },
+  ambient: { intensity: 0.55 },
   key: {
-    intensity: 1.8,
+    intensity: 2.4,
     color: '#fff4e0',
     position: [3, 5, 4] as [number, number, number],
     shadowMapSize: 1024,
@@ -104,6 +104,15 @@ export const LIGHTING = {
     color: '#c8d8ff',
     position: [-2, 3, -3] as [number, number, number],
   },
+};
+
+/* ─── Environment ─── */
+export const ENVIRONMENT = {
+  preset: 'studio' as const,
+  intensity: 0.4,
+  backgroundBlurriness: 1,
+  background: false,
+  sceneBackground: '#f5f0e8',
 };
 
 /* ─── Phase scene states (extended with per-group motion) ─── */
