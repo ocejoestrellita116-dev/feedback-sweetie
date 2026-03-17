@@ -86,15 +86,23 @@ export const POINTER_RANGES = {
 
 /* ─── Lighting ─── */
 export const LIGHTING = {
-  ambient: { intensity: 0.4 },
+  ambient: { intensity: 0.25 },
   key: {
-    intensity: 1.6,
+    intensity: 1.8,
+    color: '#fff4e0',
     position: [3, 5, 4] as [number, number, number],
     shadowMapSize: 1024,
+    shadowBias: -0.0005,
   },
   fill: {
-    intensity: 0.5,
+    intensity: 0.35,
+    color: '#e8eeff',
     position: [-3, 2, 2] as [number, number, number],
+  },
+  rim: {
+    intensity: 0.6,
+    color: '#c8d8ff',
+    position: [-2, 3, -3] as [number, number, number],
   },
 };
 

@@ -332,14 +332,20 @@ export function HeroStageWebGL(props: StageProps) {
   return (
     <div className="absolute inset-0">
       <Canvas
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
+        }}
         camera={{
           fov: CAMERA_DEFAULTS.fov,
           near: CAMERA_DEFAULTS.near,
           far: CAMERA_DEFAULTS.far,
           position: CAMERA_DEFAULTS.position,
         }}
-        shadows
+        shadows="soft"
         style={{ position: 'absolute', inset: 0 }}
         dpr={[1, 1.5]}
         frameloop="always"
