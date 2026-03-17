@@ -173,10 +173,14 @@ function applySecondaryMotion(
 
 /* ─── Scene content (lives inside Canvas) ─── */
 
-function SceneContent({ progress, phase, localProgress }: StageProps) {
+function SceneContent({ progress, phase, localProgress, onCriticalMissing }: StageProps) {
   const { pointerLerpX, pointerLerpY } = useExperience();
   const { camera } = useThree();
-  const { nodes, grouped, loaded } = useGLBScene();
+  const { nodes, grouped, loaded, criticalMissing } = useGLBScene();
+
+  useEffect(() => {
+    if (criticalMissing && onCriticalMissing) onCriticalMissing();
+  }, [criticalMissing, onCriticalMissing]);
 
   const sceneRef = useRef<THREE.Group>(null);
   const heroArtifactRef = useRef<THREE.Group>(null);
