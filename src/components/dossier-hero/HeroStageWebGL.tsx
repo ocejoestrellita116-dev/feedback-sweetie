@@ -89,23 +89,24 @@ function applyPhaseMotion(
   s.atmosphereOpacity = l(s.atmosphereOpacity, target.atmosphereOpacity, lerpAmt);
   s.orbGlow = l(s.orbGlow, target.orbGlow, lerpAmt);
 
-  // Camera
+  // Camera — subtle drift only
   const px = (pointerLerpX - 0.5) * POINTER_RANGES.cameraPointerX;
   const py = (pointerLerpY - 0.5) * -POINTER_RANGES.cameraPointerY;
   (camera as THREE.PerspectiveCamera).position.set(px, s.cameraY + py, s.cameraZ);
   camera.lookAt(0, 0.8, 0);
 
-  // Hero artifact group
+  // Hero artifact group — position, scale, and additive pointer tilt
   if (heroArtifactRef.current) {
     heroArtifactRef.current.position.y = s.heroArtifactY;
     const sc = s.heroArtifactScale;
     heroArtifactRef.current.scale.set(sc, sc, sc);
+    heroArtifactRef.current.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.artifactTiltY;
+    heroArtifactRef.current.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.artifactTiltX;
   }
 
   // Support group
   if (supportRef.current) {
     supportRef.current.position.y = s.supportY;
-    // Spread: scale X slightly outward
     const sp = 1 + s.supportSpread;
     supportRef.current.scale.set(sp, 1, sp);
   }
