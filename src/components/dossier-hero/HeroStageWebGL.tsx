@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DossierPhaseId } from './dossier-hero.types';
 import {
@@ -8,6 +9,7 @@ import {
   POINTER_RANGES,
   CAMERA_DEFAULTS,
   LIGHTING,
+  ENVIRONMENT,
   NODE_BEHAVIOUR,
   type PhaseSceneState,
   type SemanticNodeKey,
