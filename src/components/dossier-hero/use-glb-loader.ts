@@ -24,7 +24,7 @@ const EMPTY_GROUPED: GroupedNodes = { heroArtifact: [], support: [], atmosphere:
  */
 export function useGLBScene(): GLBLoaderResult {
   const { scene } = useGLTF(GLB_URL);
-  const [result, setResult] = useState<GLBLoaderResult>({ nodes: {}, grouped: EMPTY_GROUPED, loaded: false });
+  const [result, setResult] = useState<GLBLoaderResult>({ nodes: {}, grouped: EMPTY_GROUPED, loaded: false, criticalMissing: false });
 
   useEffect(() => {
     if (!scene) return;
