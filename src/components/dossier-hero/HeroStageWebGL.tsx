@@ -205,8 +205,13 @@ function applySecondaryMotion(
 
 function SceneContent({ progress, phase, localProgress, onCriticalMissing }: StageProps) {
   const { pointerLerpX, pointerLerpY, isTouch, reducedMotion } = useExperience();
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
   const { nodes, grouped, loaded, criticalMissing } = useGLBScene();
+
+  // Set warm cream scene background to match Blender renders
+  useEffect(() => {
+    scene.background = new THREE.Color(ENVIRONMENT.sceneBackground);
+  }, [scene]);
 
   useEffect(() => {
     if (criticalMissing && onCriticalMissing) onCriticalMissing();
