@@ -17,24 +17,25 @@ export function DossierHero() {
   const { progress, phase, localProgress } = useDossierProgress(containerRef);
   const { webglAvailable, setHeroActive } = useExperience();
 
-  // GLB loads inside R3F Canvas via useGLTF — we track readiness via a simple flag
-  // For preloader, we use a quick heuristic: GLB is small, show enter after short delay
   const [glbReady, setGlbReady] = useState(false);
+  const [glbFailed, setGlbFailed] = useState(false);
   useEffect(() => {
     if (webglAvailable) {
-      // GLB preloaded by use-glb-loader.ts; give it a moment
       const t = setTimeout(() => setGlbReady(true), 600);
       return () => clearTimeout(t);
     }
   }, [webglAvailable]);
 
-  // Fallback: ZIP frame loader for non-WebGL path
+  // Use WebGL path only if available and GLB didn't fail critical validation
+  const useWebGL = webglAvailable && !glbFailed;
+
+  // Fallback: ZIP frame loader for non-WebGL path or GLB failure
   const { frames, loaded: framesLoaded, progress: frameLoadProgress } = useFrameLoader(
-    webglAvailable ? '' : ZIP_URL
+    useWebGL ? '' : ZIP_URL
   );
 
-  const loaded = webglAvailable ? glbReady : framesLoaded;
-  const loadProgress = webglAvailable ? (glbReady ? 1 : 0.5) : frameLoadProgress;
+  const loaded = useWebGL ? glbReady : framesLoaded;
+  const loadProgress = useWebGL ? (glbReady ? 1 : 0.5) : frameLoadProgress;
 
   useEffect(() => {
     setHeroActive(progress > 0 && phase !== 'handoff');
@@ -52,11 +53,12 @@ export function DossierHero() {
         {/* Sticky viewport — pinned while scrolling through runway */}
         <div className="sticky top-0 h-screen w-full overflow-hidden" style={{ background: 'hsl(var(--background))' }}>
 
-          {webglAvailable ? (
+          {useWebGL ? (
             <HeroStageWebGL
               progress={progress}
               phase={phase}
               localProgress={localProgress}
+              onCriticalMissing={() => setGlbFailed(true)}
             />
           ) : (
             <>

@@ -2,7 +2,7 @@ import type { DossierPhaseId } from './dossier-hero.types';
 import { DOSSIER_PHASE_CONTENT } from './dossier-hero.content';
 import { useExperience } from '@/components/experience/ExperienceProvider';
 
-const PARALLAX_PX = 8;
+const PARALLAX_PX = 4;
 
 interface Props {
   phase: DossierPhaseId;
@@ -34,7 +34,7 @@ export function SpatialLayer({ phase, localProgress, progress }: Props) {
           key={w}
           className="absolute text-xs font-sans text-dossier-whisper transition-opacity duration-200"
           style={{
-            opacity: phase === 'open' ? Math.min(localProgress * 1.5, 0.5) : 0.3,
+            opacity: phase === 'open' ? Math.min(localProgress * 1.5, 0.35) : 0.2,
             top: `${35 + i * 30}%`,
             [i % 2 === 0 ? 'left' : 'right']: '5%',
             transitionDelay: `${i * 60}ms`,

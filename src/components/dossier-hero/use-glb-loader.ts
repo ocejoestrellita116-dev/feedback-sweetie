@@ -7,10 +7,13 @@ import { GLB_URL, NODE_MAP, NODE_BEHAVIOUR, GROUP_ASSIGNMENT, type SemanticNodeK
 export type SemanticNodes = Partial<Record<SemanticNodeKey, Object3D>>;
 export type GroupedNodes = Record<SceneGroupId, Object3D[]>;
 
+const CRITICAL_NODES: SemanticNodeKey[] = ['dossier', 'pedestalBase'];
+
 interface GLBLoaderResult {
   nodes: SemanticNodes;
   grouped: GroupedNodes;
   loaded: boolean;
+  criticalMissing: boolean;
 }
 
 const EMPTY_GROUPED: GroupedNodes = { heroArtifact: [], support: [], atmosphere: [] };
@@ -21,7 +24,7 @@ const EMPTY_GROUPED: GroupedNodes = { heroArtifact: [], support: [], atmosphere:
  */
 export function useGLBScene(): GLBLoaderResult {
   const { scene } = useGLTF(GLB_URL);
-  const [result, setResult] = useState<GLBLoaderResult>({ nodes: {}, grouped: EMPTY_GROUPED, loaded: false });
+  const [result, setResult] = useState<GLBLoaderResult>({ nodes: {}, grouped: EMPTY_GROUPED, loaded: false, criticalMissing: false });
 
   useEffect(() => {
     if (!scene) return;
@@ -64,7 +67,11 @@ export function useGLBScene(): GLBLoaderResult {
       }
     });
 
-    setResult({ nodes, grouped, loaded: Object.keys(nodes).length > 0 });
+    const missing = CRITICAL_NODES.filter(k => !nodes[k]);
+    if (missing.length > 0) {
+      console.warn(`[GLB] Critical nodes missing: ${missing.join(', ')}. Falling back to 2D sequence.`);
+    }
+    setResult({ nodes, grouped, loaded: Object.keys(nodes).length > 0, criticalMissing: missing.length > 0 });
   }, [scene]);
 
   return result;
