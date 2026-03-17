@@ -52,8 +52,8 @@ export interface NodeBehaviour {
 }
 
 export const NODE_BEHAVIOUR: Partial<Record<SemanticNodeKey, NodeBehaviour>> = {
-  dossier:      { castShadow: true, pointerTilt: true },
-  dossierCover: { castShadow: true, pointerTilt: true },
+  dossier:      { castShadow: true },
+  dossierCover: { castShadow: true },
   orb:          { castShadow: true, pointerTilt: true, float: { amp: 0.06, speed: 0.35 } },
   pedestalBase: { receiveShadow: true },
   pedestalMid:  { receiveShadow: true },
