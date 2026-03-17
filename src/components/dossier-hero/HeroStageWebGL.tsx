@@ -2,290 +2,204 @@ import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DossierPhaseId } from './dossier-hero.types';
-import { PHASE_SCENE, POINTER_PARALLAX, SCENE_LERP, type PhaseSceneState } from './hero-stage.config';
+import {
+  PHASE_SCENE,
+  SCENE_LERP,
+  POINTER_RANGES,
+  CAMERA_DEFAULTS,
+  LIGHTING,
+  NODE_BEHAVIOUR,
+  type PhaseSceneState,
+  type SemanticNodeKey,
+} from './hero-scene.config';
+import { useGLBScene } from './use-glb-loader';
 import { useExperience } from '../experience/ExperienceProvider';
 
-/* ─────── Props ─────── */
+/* ─── Props ─── */
 
 interface StageProps {
   progress: number;
   phase: DossierPhaseId;
   localProgress: number;
-  frames: HTMLImageElement[];
-  loaded: boolean;
 }
 
-/* ─────── Helpers ─────── */
+/* ─── Helpers ─── */
 
-function getCSSColorHSL(token: string): THREE.Color {
-  const el = document.documentElement;
-  const raw = getComputedStyle(el).getPropertyValue(`--${token}`).trim();
-  if (!raw) return new THREE.Color(0x000000);
-  const [h, s, l] = raw.split(/\s+/).map(parseFloat);
-  return new THREE.Color().setHSL(h / 360, s / 100, l / 100);
-}
-
-function lerpSceneState(a: PhaseSceneState, b: PhaseSceneState, t: number): PhaseSceneState {
+function lerpState(a: PhaseSceneState, b: PhaseSceneState, t: number): PhaseSceneState {
   const l = THREE.MathUtils.lerp;
   return {
     cameraZ: l(a.cameraZ, b.cameraZ, t),
-    bookScale: l(a.bookScale, b.bookScale, t),
-    bookY: l(a.bookY, b.bookY, t),
-    bookRotZ: l(a.bookRotZ, b.bookRotZ, t),
-    atmosphereOpacity: l(a.atmosphereOpacity, b.atmosphereOpacity, t),
-    grainOpacity: l(a.grainOpacity, b.grainOpacity, t),
+    cameraY: l(a.cameraY, b.cameraY, t),
+    sceneTiltMultiplier: l(a.sceneTiltMultiplier, b.sceneTiltMultiplier, t),
+    orbGlow: l(a.orbGlow, b.orbGlow, t),
   };
 }
 
-/* ─────── Atmosphere shader ─────── */
+/* ─── Grain overlay shader ─── */
 
-const atmosphereVertexShader = /* glsl */ `
+const grainVert = /* glsl */ `
 varying vec2 vUv;
 void main() {
   vUv = uv;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
+}`;
 
-const atmosphereFragmentShader = /* glsl */ `
-uniform vec3 uWarmColor;
-uniform vec3 uBgColor;
-uniform float uOpacity;
-varying vec2 vUv;
-void main() {
-  vec2 c = vUv - 0.5;
-  float d = length(c * vec2(1.25, 1.43));  // ellipse 80% x 70%
-  float t = smoothstep(0.0, 0.7, d);
-  vec3 col = mix(uWarmColor, uBgColor, t);
-  gl_FragColor = vec4(col, uOpacity * (1.0 - t * 0.3));
-}
-`;
-
-/* ─────── Wash/vignette shader ─────── */
-
-const washVertexShader = atmosphereVertexShader;
-
-const washFragmentShader = /* glsl */ `
-uniform vec3 uBgColor;
-varying vec2 vUv;
-void main() {
-  vec2 c = vUv - 0.5;
-  float d = length(c * vec2(1.47, 1.59));  // ellipse 68% x 63%
-  float alpha = smoothstep(0.58, 0.92, d);
-  gl_FragColor = vec4(uBgColor, alpha);
-}
-`;
-
-/* ─────── Grain shader ─────── */
-
-const grainVertexShader = atmosphereVertexShader;
-
-const grainFragmentShader = /* glsl */ `
+const grainFrag = /* glsl */ `
 uniform float uTime;
 uniform float uOpacity;
 varying vec2 vUv;
-
-float rand(vec2 co) {
-  return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
+float rand(vec2 co) { return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453); }
 void main() {
   float n = rand(vUv * 800.0 + uTime * 3.0);
   gl_FragColor = vec4(vec3(n), uOpacity);
-}
-`;
+}`;
 
-/* ─────── Scene internals ─────── */
+/* ─── Scene content (lives inside Canvas) ─── */
 
-function SceneContent({ progress, phase, localProgress, frames, loaded }: StageProps) {
+function SceneContent({ progress, phase, localProgress }: StageProps) {
   const { pointerLerpX, pointerLerpY } = useExperience();
   const { camera } = useThree();
+  const { scene: glbScene, nodes, loaded } = useGLBScene();
 
-  // Refs for smooth lerp
-  const currentScene = useRef<PhaseSceneState>({ ...PHASE_SCENE.closed });
-  const bookMeshRef = useRef<THREE.Mesh>(null);
-  const atmosphereRef = useRef<THREE.ShaderMaterial>(null);
-  const washRef = useRef<THREE.ShaderMaterial>(null);
+  // Scene root ref for tilt
+  const sceneRootRef = useRef<THREE.Group>(null);
+  const currentState = useRef<PhaseSceneState>({ ...PHASE_SCENE.closed });
   const grainRef = useRef<THREE.ShaderMaterial>(null);
 
-  // Offscreen canvas + texture for book frames
-  const { offCanvas, texture } = useMemo(() => {
-    const c = document.createElement('canvas');
-    c.width = 1;
-    c.height = 1;
-    const tex = new THREE.CanvasTexture(c);
-    tex.minFilter = THREE.LinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return { offCanvas: c, texture: tex };
-  }, []);
+  // Store original positions of nodes for shift animation
+  const originalPositions = useRef<Map<string, THREE.Vector3>>(new Map());
 
-  const drawnFrame = useRef(-1);
-
-  // Read CSS colors once on mount and on theme change
-  const colors = useRef({ warm: new THREE.Color(), bg: new THREE.Color() });
   useEffect(() => {
-    const update = () => {
-      colors.current.warm = getCSSColorHSL('dossier-warm');
-      colors.current.bg = getCSSColorHSL('background');
-    };
-    update();
-    const obs = new MutationObserver(update);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => obs.disconnect();
-  }, []);
+    if (!loaded || !glbScene) return;
+    // Capture original positions
+    Object.entries(nodes).forEach(([key, node]) => {
+      if (node) {
+        originalPositions.current.set(key, node.position.clone());
+      }
+    });
+  }, [loaded, glbScene, nodes]);
 
-  // Book plane aspect ratio (set once frames load)
-  const bookAspect = useRef(1.0);
+  // Grain material
+  const grainMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: grainVert,
+    fragmentShader: grainFrag,
+    uniforms: { uTime: { value: 0 }, uOpacity: { value: 0.02 } },
+    transparent: true,
+    depthWrite: false,
+  }), []);
+
   useEffect(() => {
-    if (loaded && frames.length > 0) {
-      const img = frames[0];
-      bookAspect.current = img.naturalWidth / img.naturalHeight;
-    }
-  }, [loaded, frames]);
+    return () => { grainMat.dispose(); };
+  }, [grainMat]);
 
-  useFrame((_state, delta) => {
-    if (!loaded || frames.length === 0) return;
+  useFrame((state, delta) => {
+    if (!loaded) return;
 
-    // 1. Target scene state from phase + localProgress
+    // 1. Target phase state
     const phaseKeys = Object.keys(PHASE_SCENE) as DossierPhaseId[];
     const phaseIdx = phaseKeys.indexOf(phase);
     const nextIdx = Math.min(phaseIdx + 1, phaseKeys.length - 1);
-    const target = lerpSceneState(
-      PHASE_SCENE[phase],
-      PHASE_SCENE[phaseKeys[nextIdx]],
-      localProgress
-    );
+    const target = lerpState(PHASE_SCENE[phase], PHASE_SCENE[phaseKeys[nextIdx]], localProgress);
 
-    // 2. Smooth lerp current toward target
-    const s = currentScene.current;
+    // 2. Smooth lerp
+    const s = currentState.current;
     const lerpAmt = 1 - Math.pow(1 - SCENE_LERP, delta * 60);
     s.cameraZ = THREE.MathUtils.lerp(s.cameraZ, target.cameraZ, lerpAmt);
-    s.bookScale = THREE.MathUtils.lerp(s.bookScale, target.bookScale, lerpAmt);
-    s.bookY = THREE.MathUtils.lerp(s.bookY, target.bookY, lerpAmt);
-    s.bookRotZ = THREE.MathUtils.lerp(s.bookRotZ, target.bookRotZ, lerpAmt);
-    s.atmosphereOpacity = THREE.MathUtils.lerp(s.atmosphereOpacity, target.atmosphereOpacity, lerpAmt);
-    s.grainOpacity = THREE.MathUtils.lerp(s.grainOpacity, target.grainOpacity, lerpAmt);
+    s.cameraY = THREE.MathUtils.lerp(s.cameraY, target.cameraY, lerpAmt);
+    s.sceneTiltMultiplier = THREE.MathUtils.lerp(s.sceneTiltMultiplier, target.sceneTiltMultiplier, lerpAmt);
+    s.orbGlow = THREE.MathUtils.lerp(s.orbGlow, target.orbGlow, lerpAmt);
 
-    // 3. Camera — position + pointer parallax
-    const px = (pointerLerpX - 0.5) * POINTER_PARALLAX;
-    const py = (pointerLerpY - 0.5) * -POINTER_PARALLAX;
-    (camera as THREE.PerspectiveCamera).position.set(px, py, s.cameraZ);
-    camera.lookAt(0, 0, 0);
+    // 3. Camera position with pointer parallax
+    const px = (pointerLerpX - 0.5) * POINTER_RANGES.cameraPointerX;
+    const py = (pointerLerpY - 0.5) * -POINTER_RANGES.cameraPointerY;
+    (camera as THREE.PerspectiveCamera).position.set(
+      px,
+      s.cameraY + py,
+      s.cameraZ,
+    );
+    camera.lookAt(0, 0.8, 0);
 
-    // 4. Book frame texture update
-    const totalFrames = frames.length;
-    const frameIdx = Math.min(Math.floor(progress * (totalFrames - 1)), totalFrames - 1);
-    if (frameIdx !== drawnFrame.current) {
-      const img = frames[frameIdx];
-      if (img) {
-        if (offCanvas.width !== img.naturalWidth || offCanvas.height !== img.naturalHeight) {
-          offCanvas.width = img.naturalWidth;
-          offCanvas.height = img.naturalHeight;
-          bookAspect.current = img.naturalWidth / img.naturalHeight;
-        }
-        const ctx = offCanvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-          ctx.drawImage(img, 0, 0);
-          texture.needsUpdate = true;
-        }
-        drawnFrame.current = frameIdx;
+    // 4. Scene root tilt from pointer
+    if (sceneRootRef.current) {
+      const tiltMul = s.sceneTiltMultiplier;
+      sceneRootRef.current.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.sceneTiltY * tiltMul;
+      sceneRootRef.current.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.sceneTiltX * tiltMul;
+    }
+
+    // 5. Per-node secondary motion
+    const elapsed = state.clock.elapsedTime;
+    Object.entries(nodes).forEach(([key, node]) => {
+      if (!node) return;
+      const behaviour = NODE_BEHAVIOUR[key as SemanticNodeKey];
+      if (!behaviour) return;
+
+      const orig = originalPositions.current.get(key);
+      if (!orig) return;
+
+      let yOffset = 0;
+      let xShift = 0;
+      let zShift = 0;
+
+      // Float animation (orb)
+      if (behaviour.float) {
+        yOffset = Math.sin(elapsed * behaviour.float.speed * Math.PI * 2) * behaviour.float.amp;
       }
-    }
 
-    // 5. Book mesh transform
-    const book = bookMeshRef.current;
-    if (book) {
-      const sc = s.bookScale;
-      book.scale.set(sc * bookAspect.current * 3, sc * 3, 1);
-      book.position.y = s.bookY;
-      book.rotation.z = s.bookRotZ;
-    }
+      // Pointer-driven shift (tickets, rails)
+      if (behaviour.pointerShift) {
+        xShift = (pointerLerpX - 0.5) * behaviour.pointerShift.x;
+        zShift = (pointerLerpY - 0.5) * behaviour.pointerShift.y;
+      }
 
-    // 6. Shader uniforms
-    if (atmosphereRef.current) {
-      atmosphereRef.current.uniforms.uWarmColor.value.copy(colors.current.warm);
-      atmosphereRef.current.uniforms.uBgColor.value.copy(colors.current.bg);
-      atmosphereRef.current.uniforms.uOpacity.value = s.atmosphereOpacity;
-    }
-    if (washRef.current) {
-      washRef.current.uniforms.uBgColor.value.copy(colors.current.bg);
-    }
+      // Artifact tilt
+      if (behaviour.pointerTilt) {
+        node.rotation.y = (pointerLerpX - 0.5) * POINTER_RANGES.artifactTiltY;
+        node.rotation.x = (pointerLerpY - 0.5) * -POINTER_RANGES.artifactTiltX;
+      }
+
+      node.position.set(
+        orig.x + xShift,
+        orig.y + yOffset,
+        orig.z + zShift,
+      );
+    });
+
+    // 6. Grain
     if (grainRef.current) {
-      grainRef.current.uniforms.uTime.value = _state.clock.elapsedTime;
-      grainRef.current.uniforms.uOpacity.value = s.grainOpacity;
+      grainRef.current.uniforms.uTime.value = elapsed;
     }
   });
 
-  // Shader materials (memoised)
-  const atmosphereMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: atmosphereVertexShader,
-    fragmentShader: atmosphereFragmentShader,
-    uniforms: {
-      uWarmColor: { value: new THREE.Color() },
-      uBgColor: { value: new THREE.Color() },
-      uOpacity: { value: 0.6 },
-    },
-    transparent: true,
-    depthWrite: false,
-  }), []);
-
-  const washMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: washVertexShader,
-    fragmentShader: washFragmentShader,
-    uniforms: {
-      uBgColor: { value: new THREE.Color() },
-    },
-    transparent: true,
-    depthWrite: false,
-  }), []);
-
-  const grainMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: grainVertexShader,
-    fragmentShader: grainFragmentShader,
-    uniforms: {
-      uTime: { value: 0 },
-      uOpacity: { value: 0.025 },
-    },
-    transparent: true,
-    depthWrite: false,
-  }), []);
-
-  // Dispose WebGL resources on unmount
-  useEffect(() => {
-    return () => {
-      atmosphereMat.dispose();
-      washMat.dispose();
-      grainMat.dispose();
-      texture.dispose();
-      offCanvas.width = 0;
-      offCanvas.height = 0;
-    };
-  }, [atmosphereMat, washMat, grainMat, texture, offCanvas]);
-
   return (
     <>
-      {/* Atmosphere plane — behind book */}
-      <mesh position={[0, 0, -2]} renderOrder={0}>
-        <planeGeometry args={[14, 10]} />
-        <primitive object={atmosphereMat} ref={atmosphereRef} attach="material" />
-      </mesh>
+      {/* Lighting — authored at runtime, not from GLB */}
+      <ambientLight intensity={LIGHTING.ambient.intensity} />
+      <directionalLight
+        position={LIGHTING.key.position}
+        intensity={LIGHTING.key.intensity}
+        castShadow
+        shadow-mapSize-width={LIGHTING.key.shadowMapSize}
+        shadow-mapSize-height={LIGHTING.key.shadowMapSize}
+        shadow-camera-near={0.5}
+        shadow-camera-far={20}
+        shadow-camera-left={-4}
+        shadow-camera-right={4}
+        shadow-camera-top={4}
+        shadow-camera-bottom={-4}
+        shadow-bias={-0.001}
+      />
+      <directionalLight
+        position={LIGHTING.fill.position}
+        intensity={LIGHTING.fill.intensity}
+      />
 
-      {/* Book plane */}
-      <mesh ref={bookMeshRef} position={[0, 0, 0]} renderOrder={1}>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial map={texture} transparent toneMapped={false} />
-      </mesh>
+      {/* GLB scene */}
+      <group ref={sceneRootRef}>
+        {loaded && glbScene && <primitive object={glbScene} />}
+      </group>
 
-      {/* Wash/vignette plane — in front of book */}
-      <mesh position={[0, 0, 1]} renderOrder={2}>
-        <planeGeometry args={[14, 10]} />
-        <primitive object={washMat} ref={washRef} attach="material" />
-      </mesh>
-
-      {/* Grain overlay — closest to camera */}
-      <mesh position={[0, 0, 2]} renderOrder={3}>
+      {/* Grain overlay — screen-space, closest to camera */}
+      <mesh position={[0, 1, 3.5]} renderOrder={10}>
         <planeGeometry args={[14, 10]} />
         <primitive object={grainMat} ref={grainRef} attach="material" />
       </mesh>
@@ -293,14 +207,20 @@ function SceneContent({ progress, phase, localProgress, frames, loaded }: StageP
   );
 }
 
-/* ─────── Exported Canvas wrapper ─────── */
+/* ─── Exported Canvas wrapper ─── */
 
 export function HeroStageWebGL(props: StageProps) {
   return (
     <div className="absolute inset-0">
       <Canvas
-        gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
-        camera={{ fov: 50, near: 0.1, far: 20, position: [0, 0, 5] }}
+        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        camera={{
+          fov: CAMERA_DEFAULTS.fov,
+          near: CAMERA_DEFAULTS.near,
+          far: CAMERA_DEFAULTS.far,
+          position: CAMERA_DEFAULTS.position,
+        }}
+        shadows
         style={{ position: 'absolute', inset: 0 }}
         dpr={[1, 1.5]}
         frameloop="always"
